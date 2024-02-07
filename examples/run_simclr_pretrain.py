@@ -66,6 +66,7 @@ trainloader = DataLoader(traindata,
     )
 
 # build medclip model
+### Since we only use Vision Encoder, it returns just visual embedding (not passed fc layer)
 model = MedCLIPVisionModelViT
 model.cuda()
 

@@ -85,7 +85,6 @@ class ImageTextContrastiveLoss(nn.Module):
         return nn.functional.binary_cross_entropy_with_logits(input, target)
 
 
-
 class SimCLRLoss(nn.Module):
     def __init__(self,
         model,

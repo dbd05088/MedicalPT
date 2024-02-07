@@ -482,13 +482,18 @@ class SuperviseImageDataset(Dataset):
             df_list.append(df)
         self.df = pd.concat(df_list, axis=0).reset_index(drop=True)
 
+    ### For Contrastive Learning, return different augmented images ###
     def __getitem__(self, index):
         row = self.df.iloc[index]
         img = Image.open(row.imgpath)
-        img = self._pad_img(img)
-        img = self.transform(img).unsqueeze(1)
+        img_1 = self._pad_img(img)
+        img_1 = self.transform(img_1).unsqueeze(1)
+        
+        img_2 = self._pad_img(img)
+        img_2 = self.transform(img_1).unsqueeze(1)
+        
         label = pd.DataFrame(row[self.class_names]).transpose()
-        return img, label
+        return [img_1, img_2], label
 
     def _pad_img(self, img, min_size=224, fill_color=0):
         '''pad img to square.
