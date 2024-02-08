@@ -6,14 +6,14 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from medclip.modeling_medclip import MedCLIPModel, PromptClassifier, MedCLIPVisionModel, MedCLIPVisionModelViT
-from medclip.dataset import ImageTextContrastiveDataset, ZeroShotImageDataset
-from medclip.dataset import ImageTextContrastiveCollator, ZeroShotImageCollator
-from medclip.losses import ImageTextContrastiveLoss
-from medclip.trainer import Trainer
-from medclip.evaluator import Evaluator
-from medclip import constants
-from medclip.prompts import generate_class_prompts, generate_chexpert_class_prompts, generate_covid_class_prompts
+from medclip_v2.modeling_medclip import MedCLIPModel, PromptClassifier, MedCLIPVisionModel, MedCLIPVisionModelViT
+from medclip_v2.dataset import ImageTextContrastiveDataset, ZeroShotImageDataset
+from medclip_v2.dataset import ImageTextContrastiveCollator, ZeroShotImageCollator
+from medclip_v2.losses import ImageTextContrastiveLoss
+from medclip_v2.trainer import Trainer
+from medclip_v2.evaluator import Evaluator
+from medclip_v2 import constants
+from medclip_v2.prompts import generate_class_prompts, generate_chexpert_class_prompts, generate_covid_class_prompts
 
 # set random seed
 seed = 42

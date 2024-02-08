@@ -6,13 +6,13 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from medclip.modeling_medclip import MedCLIPVisionModelViT, SuperviseClassifier
-from medclip.dataset import ZeroShotImageDataset, SuperviseImageDataset
-from medclip.dataset import ZeroShotImageCollator, SuperviseImageCollator
-from medclip.losses import SimCLRLoss
-from medclip.trainer import Trainer
-from medclip.evaluator import Evaluator
-from medclip import constants
+from medclip_v2.modeling_medclip import MedCLIPVisionModelViT, SuperviseClassifier
+from medclip_v2.dataset import ZeroShotImageDataset, SuperviseImageDataset
+from medclip_v2.dataset import ZeroShotImageCollator, SuperviseImageCollator
+from medclip_v2.losses import SimCLRLoss
+from medclip_v2.trainer import Trainer
+from medclip_v2.evaluator import Evaluator
+from medclip_v2 import constants
 
 # set random seed
 seed = 42
