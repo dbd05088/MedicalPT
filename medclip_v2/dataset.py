@@ -490,7 +490,7 @@ class SuperviseImageDataset(Dataset):
         img_1 = self.transform(img_1).unsqueeze(1)
         
         img_2 = self._pad_img(img)
-        img_2 = self.transform(img_1).unsqueeze(1)
+        img_2 = self.transform(img_2).unsqueeze(1)
         
         label = pd.DataFrame(row[self.class_names]).transpose()
         return [img_1, img_2], label
@@ -515,19 +515,54 @@ class SuperviseImageCollator:
     def __call__(self, batch):
         inputs = defaultdict(list)
         for data in batch:
-            inputs['pixel_values'].append(data[0])
+            inputs['pixel_values1'].append(data[0][0])
+            inputs['pixel_values2'].append(data[0][1])
             inputs['labels'].append(data[1])
-        inputs['labels'] = pd.concat(inputs['labels']).astype(int).values
+        # inputs['labels'] = torch.concat(inputs['labels']).astype(int).values
 
         if self.mode in ['multiclass','binary']:
-            inputs['labels'] = torch.tensor(inputs['labels'].argmax(1), dtype=int)
+            inputs['labels'] = torch.tensor(inputs['labels'], dtype=int)
         else:
             inputs['labels'] = torch.tensor(inputs['labels'], dtype=float)
+        inputs['pixel_values1'] = torch.cat(inputs['pixel_values1'], 0)
+        if inputs['pixel_values1'].shape[1] == 1: inputs['pixel_values1'] = inputs['pixel_values1'].repeat((1,3,1,1))
+        inputs['pixel_values2'] = torch.cat(inputs['pixel_values2'], 0)
+        if inputs['pixel_values2'].shape[1] == 1: inputs['pixel_values2'] = inputs['pixel_values2'].repeat((1,3,1,1))
+        
+        print("label dim", inputs['labels'].dim())
+        if inputs['labels'].dim()==1:
+            inputs['labels']=inputs['labels'].unsqueeze(1)
+        
+        return {
+            'pixel_values': [inputs['pixel_values1'],inputs['pixel_values2']] ,
+            'labels': inputs['labels'],
+            }
 
+class SuperviseImageCollatorVal:
+    def __init__(self, mode):
+        assert mode in ['multiclass','multilabel','binary']
+        self.mode = mode
+
+    def __call__(self, batch):
+        inputs = defaultdict(list)
+        for data in batch:
+            inputs['pixel_values'].append(data[0])
+            inputs['labels'].append(data[1])
+        # inputs['labels'] = torch.concat(inputs['labels']).astype(int).values
+
+        if self.mode in ['multiclass','binary']:
+            inputs['labels'] = torch.tensor(inputs['labels'], dtype=int)
+        else:
+            inputs['labels'] = torch.tensor(inputs['labels'], dtype=float)
         inputs['pixel_values'] = torch.cat(inputs['pixel_values'], 0)
         if inputs['pixel_values'].shape[1] == 1: inputs['pixel_values'] = inputs['pixel_values'].repeat((1,3,1,1))
+        
+        print("val label dim", inputs['labels'].dim())
+        if inputs['labels'].dim()==1:
+            inputs['labels']=inputs['labels'].unsqueeze(1)
+        
         return {
-            'pixel_values': inputs['pixel_values'],
+            'pixel_values': [inputs['pixel_values']] ,
             'labels': inputs['labels'],
             }
 
