@@ -69,7 +69,7 @@ class DRDBase(data.Dataset):
                     img_2 = self.transforms(img_2).unsqueeze(1)
                     return [img_1, img_2], label
                 else:
-                    img = self.test_transform(img.convert('RGB')).unsqueeze(1)
+                    img = self.test_transform(img.convert('RGB'))
                     return img, label
         
 

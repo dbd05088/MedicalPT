@@ -518,7 +518,6 @@ class SuperviseImageCollator:
             inputs['pixel_values1'].append(data[0][0])
             inputs['pixel_values2'].append(data[0][1])
             inputs['labels'].append(data[1])
-        # inputs['labels'] = torch.concat(inputs['labels']).astype(int).values
 
         if self.mode in ['multiclass','binary']:
             inputs['labels'] = torch.tensor(inputs['labels'], dtype=int)
@@ -529,10 +528,7 @@ class SuperviseImageCollator:
         inputs['pixel_values2'] = torch.cat(inputs['pixel_values2'], 0)
         if inputs['pixel_values2'].shape[1] == 1: inputs['pixel_values2'] = inputs['pixel_values2'].repeat((1,3,1,1))
         
-        print("label dim", inputs['labels'].dim())
-        if inputs['labels'].dim()==1:
-            inputs['labels']=inputs['labels'].unsqueeze(1)
-        
+            
         return {
             'pixel_values': [inputs['pixel_values1'],inputs['pixel_values2']] ,
             'labels': inputs['labels'],
@@ -548,21 +544,17 @@ class SuperviseImageCollatorVal:
         for data in batch:
             inputs['pixel_values'].append(data[0])
             inputs['labels'].append(data[1])
-        # inputs['labels'] = torch.concat(inputs['labels']).astype(int).values
-
+            
         if self.mode in ['multiclass','binary']:
             inputs['labels'] = torch.tensor(inputs['labels'], dtype=int)
         else:
             inputs['labels'] = torch.tensor(inputs['labels'], dtype=float)
-        inputs['pixel_values'] = torch.cat(inputs['pixel_values'], 0)
+        inputs['pixel_values'] = torch.stack(inputs['pixel_values'])
         if inputs['pixel_values'].shape[1] == 1: inputs['pixel_values'] = inputs['pixel_values'].repeat((1,3,1,1))
         
-        print("val label dim", inputs['labels'].dim())
-        if inputs['labels'].dim()==1:
-            inputs['labels']=inputs['labels'].unsqueeze(1)
         
         return {
-            'pixel_values': [inputs['pixel_values']] ,
+            'pixel_values': inputs['pixel_values'],
             'labels': inputs['labels'],
             }
 

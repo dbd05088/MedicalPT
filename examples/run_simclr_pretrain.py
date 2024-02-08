@@ -35,7 +35,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # set training configurations
 train_config = {
     'batch_size': 100,
-    'num_epochs': 10,
+    'num_epochs': 100,
     'warmup': 0.1, # the first 10% of training steps are used for warm-up
     'lr': 2e-5,
     'weight_decay': 1e-4,
@@ -67,7 +67,7 @@ testdata = dataset.get_D1_test()
 num_class = 1
 
 # traindata = SuperviseImageDataset(datalist=datalist, imgtransform=transform)
-train_collate_fn = SuperviseImageCollator(mode='multiclass')
+train_collate_fn = SuperviseImageCollator(mode='binary')
 trainloader = DataLoader(traindata,
     batch_size=train_config['batch_size'],
     collate_fn=train_collate_fn,
@@ -88,7 +88,7 @@ print("model", model)
 # val_data = ZeroShotImageDataset(['chexpert-5x200-val'],
 #     class_names=constants.CHEXPERT_COMPETITION_TASKS)
 # val_collate_fn = ZeroShotImageCollator(mode='multiclass')
-val_collate_fn = SuperviseImageCollatorVal(mode='multiclass')
+val_collate_fn = SuperviseImageCollatorVal(mode='binary')
 eval_dataloader = DataLoader(val_data,
     batch_size=train_config['eval_batch_size'],
     collate_fn=val_collate_fn,
@@ -96,15 +96,15 @@ eval_dataloader = DataLoader(val_data,
     pin_memory=True,
     num_workers=4,
     )
-medclip_clf = SuperviseClassifier(model, mode='multiclass', num_class=num_class).cuda()
+medclip_clf = SuperviseClassifier(model, mode='binary', num_class=num_class).cuda()
 evaluator = Evaluator(
     medclip_clf=medclip_clf,
     eval_dataloader=eval_dataloader,
-    mode='multiclass',
+    mode='binary',
 )
 
 # build loss models and start training
-loss_model = SimCLRLoss(model, train_config['batch_size'])
+loss_model = SimCLRLoss(model)
 loss_model.cuda()
 train_objectives = [
     (trainloader, loss_model, 1),

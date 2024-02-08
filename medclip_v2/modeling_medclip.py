@@ -390,7 +390,7 @@ class SuperviseClassifier(nn.Module):
         outputs['logits'] = logits
         if labels is not None and return_loss:
             labels = labels.cuda().float()
-            if len(labels.shape) == 1: labels = labels.view(-1,1)
+            if labels.dim() == 1: labels = labels.view(-1,1)
             if self.mode == 'multiclass': labels = labels.flatten().long()
             loss = self.loss_fn(logits, labels)
             outputs['loss_value'] = loss
