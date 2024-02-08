@@ -17,8 +17,9 @@ from medclip_v2.trainer import Trainer
 from medclip_v2.evaluator import Evaluator
 from medclip_v2 import constants
 
-# set random seed
 
+
+# set random seed
 seed = 42
 random.seed(seed)
 np.random.seed(seed)
@@ -28,7 +29,7 @@ os.environ['PYTHONASHSEED'] = str(seed)
 os.environ['TOKENIZERS_PARALLELISM']='false'
 
 # set cuda devices
-os.environ['CUDA_VISIBLE_DEVICES']='0'
+# os.environ['CUDA_VISIBLE_DEVICES']='0'
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
@@ -42,6 +43,9 @@ train_config = {
     'eval_batch_size': 256,
     'eval_steps': 1000,
     'save_steps': 1000,
+    'mode': 'binary',
+    'fewshot_epochs': 10,
+    'dataset': 'DRD'
 }
 
 # only pretrain on chexpert train data and mimic-cxr data
@@ -60,11 +64,12 @@ transform = transforms.Compose([
                 transforms.Normalize(mean=[constants.IMG_MEAN],std=[constants.IMG_STD])],
             )
 
-dataset = DRD(transform)
-traindata = dataset.get_D1_train()
-val_data = dataset.get_D1_valid()
-testdata = dataset.get_D1_test()
-num_class = 1
+if train_config['dataset'] == 'DRD':
+    dataset = DRD(transform)
+    traindata = dataset.get_D1_train()
+    val_data = dataset.get_D1_valid()
+    testdata = dataset.get_D1_test()
+    num_class = 1
 
 # traindata = SuperviseImageDataset(datalist=datalist, imgtransform=transform)
 train_collate_fn = SuperviseImageCollator(mode='binary')
@@ -100,7 +105,9 @@ medclip_clf = SuperviseClassifier(model, mode='binary', num_class=num_class).cud
 evaluator = Evaluator(
     medclip_clf=medclip_clf,
     eval_dataloader=eval_dataloader,
+    train_dataloader=trainloader,
     mode='binary',
+    fewshot_epochs=train_config['fewshot_epochs']
 )
 
 # build loss models and start training

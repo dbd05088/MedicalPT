@@ -18,7 +18,9 @@ class Evaluator:
     def __init__(self,
         medclip_clf,
         eval_dataloader=None,
+        train_dataloader=None,
         mode=None,
+        fewshot_epochs=None,
         ) -> None:
         '''specify class_names if doing zero-shot classification.
         mode: `binary`, 'multiclass`, or `multilabel`,
@@ -28,7 +30,35 @@ class Evaluator:
         self.clf = medclip_clf
         self.mode = mode
         self.eval_dataloader = eval_dataloader
-    
+        self.trainloader = train_dataloader
+        self.fewshot_epochs = fewshot_epochs
+        
+    def fewshot_train(self, use_amp=False, optimizer=None):
+        # few-shot training (only fc layer)
+        if use_amp:
+            from torch.cuda.amp import autocast
+            scaler = torch.cuda.amp.GradScaler()
+            
+        self.clf.freeze_except_fclayer()
+        self.clf.train()
+        for name, param in self.clf.named_parameters():
+            if 'fc' in name:
+                print(1, name, param)
+        for epoch in range(self.fewshot_epochs):
+            for train_sample in self.trainloader:
+                if use_amp:
+                    with autocast():
+                        loss_value = self.clf.fewshot_train(**train_sample)
+                    scaler.scale(loss_value).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.clf.parameters(), 1)
+                    scaler.step(optimizer)
+                    scaler.update()
+        for name, param in self.clf.named_parameters():
+            if 'fc' in name:
+                print(2, name, param)
+        self.clf.unfreeze()
+                
     def evaluate(self, eval_dataloader=None):
         self.clf.eval()
         if self.eval_dataloader is None and eval_dataloader is not None: self.eval_dataloader = eval_dataloader

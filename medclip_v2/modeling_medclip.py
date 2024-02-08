@@ -296,7 +296,6 @@ class MedCLIPVisionModelViTOnly(nn.Module):
         # else:
         pixel_values = pixel_values.cuda()
         if pixel_values.shape[1] == 1: pixel_values = pixel_values.repeat((1,3,1,1))
-        print("shape", pixel_values.shape)
         output = self.model(pixel_values)
         img_embeds = output['pooler_output']
         if project:
@@ -374,6 +373,26 @@ class SuperviseClassifier(nn.Module):
         else:
             self.loss_fn = nn.BCEWithLogitsLoss()
             self.fc = nn.Linear(input_dim, 1)
+    
+    def freeze_except_fclayer(self):
+        for n,p in self.model.named_parameters():
+            p.requires_grad = False
+    def unfreeze(self):
+        for n,p in self.model.named_parameters():
+            p.requires_grad = True
+    def fewshot_train(self, pixel_values, labels):
+        outputs = defaultdict()
+        pixel_values = pixel_values[0].cuda()
+        img_embeds = self.model(pixel_values, project=False)
+        logits = self.fc(img_embeds)
+        outputs['embedding'] = img_embeds
+        outputs['logits'] = logits
+        labels = labels.cuda().float()
+        if labels.dim() == 1: labels = labels.view(-1,1)
+        if self.mode == 'multiclass': labels = labels.flatten().long()
+        loss = self.loss_fn(logits, labels)
+        outputs['loss_value'] = loss
+        return loss
 
     def forward(self,
         pixel_values,
