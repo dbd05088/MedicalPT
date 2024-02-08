@@ -119,23 +119,7 @@ class MedCLIPVisionModelViT(nn.Module):
         '''args:
         pixel_values: tensor with shape [bs, 3, img_size, img_size]
         '''
-        # if len(pixel_values) == 2:
-        #     pixel_values1 = pixel_values[0]
-        #     pixel_values2 = pixel_values[1]
-        #     if pixel_values1.shape[1] == 1: pixel_values1 = pixel_values1.repeat((1,3,1,1))
-        #     output1 = self.model(pixel_values1)
-        #     img_embeds1 = output1['pooler_output']
-        #     if project:
-        #         img_embeds1 = self.projection_head(img_embeds1)
-        #     if pixel_values2.shape[1] == 1: pixel_values2 = pixel_values2.repeat((1,3,1,1))
-        #     output2 = self.model(pixel_values2)
-        #     img_embeds2 = output2['pooler_output']
-        #     if project:
-        #         img_embeds2 = self.projection_head(img_embeds2)
-        #     img_embeds = [img_embeds1, img_embeds2]
-        # else:
         if pixel_values.shape[1] == 1: pixel_values = pixel_values.repeat((1,3,1,1))
-        print("shape", pixel_values.shape)
         output = self.model(pixel_values)
         img_embeds = output['pooler_output']
         if project:
@@ -310,6 +294,7 @@ class MedCLIPVisionModelViTOnly(nn.Module):
         #         img_embeds2 = self.projection_head(img_embeds2)
         #     img_embeds = [img_embeds1, img_embeds2]
         # else:
+        pixel_values = pixel_values.cuda()
         if pixel_values.shape[1] == 1: pixel_values = pixel_values.repeat((1,3,1,1))
         print("shape", pixel_values.shape)
         output = self.model(pixel_values)

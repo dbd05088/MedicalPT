@@ -95,7 +95,7 @@ class SimCLRLoss(nn.Module):
         super().__init__()
         self.model = model
         self.batch_size = batch_size
-        self.temparature = temperature
+        self.temperature = temperature
         self.mask = self.mask_correlated_samples(batch_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
@@ -119,7 +119,7 @@ class SimCLRLoss(nn.Module):
         # loss = torch.nn.functional.cross_entropy(similarity_matrix[~mask].view(-1, similarity_matrix.shape[-1]), labels.view(-1))
         
         N = 2 * self.batch_size
-        z = torch.cat((output1["img_embeds"],output2["img_embeds"]), dim=0)
+        z = torch.cat((output1,output2), dim=0)
         sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
 
         sim_i_j = torch.diag(sim, self.batch_size)
