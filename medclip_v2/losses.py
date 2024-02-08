@@ -88,17 +88,66 @@ class ImageTextContrastiveLoss(nn.Module):
 class SimCLRLoss(nn.Module):
     def __init__(self,
         model,
+        batch_size,
+        temperature=0.5,
         loss_fn=None,
         ):
         super().__init__()
         self.model = model
+        self.batch_size = batch_size
+        self.temparature = temperature
+        self.mask = self.mask_correlated_samples(batch_size)
+        self.criterion = nn.CrossEntropyLoss(reduction="sum")
+        self.similarity_f = nn.CosineSimilarity(dim=2)
 
     def forward(self,
         pixel_values,
         labels=None,
         **kwargs):
-        outputs = self.model(pixel_values=pixel_values, labels=labels, return_loss=True)
-        return outputs
+        output1 = self.model(pixel_values=pixel_values[0])
+        output2 = self.model(pixel_values=pixel_values[1])
+        
+        # z_i = torch.nn.functional.normalize(output1["img_embeds"], dim=1)
+        # z_j = torch.nn.functional.normalize(output2["img_embeds"], dim=1)
+        
+        # similarity_matrix = torch.matmul(embeddings, embeddings.T)
+        # similarity_matrix /= temperature
+        # batch_size = z_i.shape[0]
+        # labels = torch.range(0, 2 * batch_size - 1, device=z_i.device).long()
+        # mask = torch.eye(labels.shape[0], dtype=torch.bool, device=z_i.device)
+        # labels = labels[~mask].view(labels.shape[0], -1)
+        # loss = torch.nn.functional.cross_entropy(similarity_matrix[~mask].view(-1, similarity_matrix.shape[-1]), labels.view(-1))
+        
+        N = 2 * self.batch_size
+        z = torch.cat((output1["img_embeds"],output2["img_embeds"]), dim=0)
+        sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
+
+        sim_i_j = torch.diag(sim, self.batch_size)
+        sim_j_i = torch.diag(sim, -self.batch_size)
+        
+        positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(N, 1)
+        negative_samples = sim[self.mask].reshape(N, -1)
+        
+        labels = torch.from_numpy(np.array([0]*N)).reshape(-1).to(positive_samples.device).long()
+        
+        logits = torch.cat((positive_samples, negative_samples), dim=1)
+        loss = self.criterion(logits, labels)
+        loss /= N
+        
+        return_res = {
+            'loss_value': loss,
+        }
+        return return_res
+    
+    def mask_correlated_samples(self, batch_size):
+        N = 2 * batch_size
+        mask = torch.ones((N, N), dtype=bool)
+        mask = mask.fill_diagonal_(0)
+        
+        for i in range(batch_size):
+            mask[i, batch_size + i] = 0
+            mask[batch_size + i, i] = 0
+        return mask
 
 class ImageSuperviseLoss(nn.Module):
     def __init__(self,
