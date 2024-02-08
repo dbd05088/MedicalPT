@@ -14,7 +14,7 @@ MAX_LENGTH = 1000000
 
 class DRDBase(data.Dataset):
     def __init__(self, index_cache_path, source_dir, split, index_file="trainLabels.csv", image_dir="images_224",
-                 imsize=224, transforms=None, to_gray=False, download=False, extract=True):
+                 imsize=224, transforms=None, test_transform=None, to_gray=False, download=False, extract=True):
         super(DRDBase,self).__init__()
         self.index_cache_path = index_cache_path
         self.source_dir = source_dir
@@ -24,6 +24,7 @@ class DRDBase(data.Dataset):
         self.image_dir = image_dir
         self.imsize = imsize
         self.to_gray = to_gray
+        self.test_transform = test_transform
         if transforms is None:
             self.transforms = transforms.Compose([
                                                 transforms.Resize((imsize,imsize)),
@@ -59,14 +60,18 @@ class DRDBase(data.Dataset):
                 #     img = self.transforms(img.convert('L'))
                 # else:
                 #     img = self.transforms(img.convert('RGB'))
+                if self.split == 'train':
+                        
+                    img_1 = self._pad_img(img)
+                    img_1 = self.transforms(img_1).unsqueeze(1)
                     
-                img_1 = self._pad_img(img)
-                img_1 = self.transforms(img_1).unsqueeze(1)
-                
-                img_2 = self._pad_img(img)
-                img_2 = self.transforms(img_2).unsqueeze(1)
+                    img_2 = self._pad_img(img)
+                    img_2 = self.transforms(img_2).unsqueeze(1)
+                    return [img_1, img_2], label
+                else:
+                    img = self.test_transform(img.convert('RGB')).unsqueeze(1)
+                    return img, label
         
-        return [img_1, img_2], label
 
     def _pad_img(self, img, min_size=224, fill_color=0):
         '''pad img to square.
@@ -147,29 +152,29 @@ class DRD(AbstractDomainInterface):
             transform_list = [transforms.Resize(doubledownsample),]
         else:
             transform_list = []
-        # if downsample is not None:
-        #     print("downsampling to", downsample)
-        #     transform = transforms.Compose(transform_list +
-        #                                    [transforms.Resize((downsample, downsample)),
-        #                                     transforms.ToTensor(),
-        #                                     #transforms.Normalize(mean=[0.485, 0.456, 0.406],
-        #                                     #                     std=[0.229, 0.224, 0.225]),
-        #                                     ])
-        #     self.image_size = (downsample, downsample)
-        # else:
-        #     transform = transforms.Compose(transform_list +
-        #                                     [transforms.Resize((224, 224)),
-        #                                      transforms.ToTensor(),
-        #                                      #transforms.Normalize(mean=[0.485, 0.456, 0.406],
-        #                                      #                     std=[0.229, 0.224, 0.225]),
-        #                                      ])
-        #     self.image_size = (224, 224)
+        if downsample is not None:
+            print("downsampling to", downsample)
+            test_transform = transforms.Compose(transform_list +
+                                           [transforms.Resize((downsample, downsample)),
+                                            transforms.ToTensor(),
+                                            #transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                            #                     std=[0.229, 0.224, 0.225]),
+                                            ])
+            self.image_size = (downsample, downsample)
+        else:
+            test_transform = transforms.Compose(transform_list +
+                                            [transforms.Resize((224, 224)),
+                                             transforms.ToTensor(),
+                                             #transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             #                     std=[0.229, 0.224, 0.225]),
+                                             ])
+            self.image_size = (224, 224)
 
-        self.ds_train = DRDBase(cache_path, source_path, "train", transforms=transform,
+        self.ds_train = DRDBase(cache_path, source_path, "train", transforms=transform, test_transform=test_transform,
                                      to_gray=shrink_channels, download=download, extract=extract, image_dir="train")
-        self.ds_valid = DRDBase(cache_path, source_path, "val", transforms=transform,
+        self.ds_valid = DRDBase(cache_path, source_path, "val", transforms=transform,test_transform=test_transform,
                                 to_gray=shrink_channels, download=download, extract=extract, image_dir="train")
-        self.ds_test = DRDBase(cache_path, source_path, "test", transforms=transform,
+        self.ds_test = DRDBase(cache_path, source_path, "test", transforms=transform,test_transform=test_transform,
                                to_gray=shrink_channels, download=download, extract=extract, image_dir="train")
         
         if extract:

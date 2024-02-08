@@ -11,7 +11,7 @@ from examples.DRD import DRD
 
 from medclip_v2.modeling_medclip import MedCLIPVisionModelViTOnly, SuperviseClassifier, MedCLIPModel
 from medclip_v2.dataset import ZeroShotImageDataset, SuperviseImageDataset
-from medclip_v2.dataset import ZeroShotImageCollator, SuperviseImageCollator
+from medclip_v2.dataset import ZeroShotImageCollator, SuperviseImageCollator, SuperviseImageCollatorVal
 from medclip_v2.losses import SimCLRLoss
 from medclip_v2.trainer import Trainer
 from medclip_v2.evaluator import Evaluator
@@ -64,6 +64,7 @@ dataset = DRD(transform)
 traindata = dataset.get_D1_train()
 val_data = dataset.get_D1_valid()
 testdata = dataset.get_D1_test()
+num_class = 1
 
 # traindata = SuperviseImageDataset(datalist=datalist, imgtransform=transform)
 train_collate_fn = SuperviseImageCollator(mode='multiclass')
@@ -81,12 +82,13 @@ trainloader = DataLoader(traindata,
 model = MedCLIPModel(vision_cls=MedCLIPVisionModelViTOnly)
 model = model.vision_model
 model.cuda()
+print("model", model)
 
 # build evaluator
 # val_data = ZeroShotImageDataset(['chexpert-5x200-val'],
 #     class_names=constants.CHEXPERT_COMPETITION_TASKS)
 # val_collate_fn = ZeroShotImageCollator(mode='multiclass')
-val_collate_fn = SuperviseImageCollator(mode='multiclass')
+val_collate_fn = SuperviseImageCollatorVal(mode='multiclass')
 eval_dataloader = DataLoader(val_data,
     batch_size=train_config['eval_batch_size'],
     collate_fn=val_collate_fn,
@@ -94,7 +96,7 @@ eval_dataloader = DataLoader(val_data,
     pin_memory=True,
     num_workers=4,
     )
-medclip_clf = SuperviseClassifier(model, mode='multiclass')
+medclip_clf = SuperviseClassifier(model, mode='multiclass', num_class=num_class).cuda()
 evaluator = Evaluator(
     medclip_clf=medclip_clf,
     eval_dataloader=eval_dataloader,

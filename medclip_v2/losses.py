@@ -88,15 +88,12 @@ class ImageTextContrastiveLoss(nn.Module):
 class SimCLRLoss(nn.Module):
     def __init__(self,
         model,
-        batch_size,
         temperature=0.5,
         loss_fn=None,
         ):
         super().__init__()
         self.model = model
-        self.batch_size = batch_size
         self.temperature = temperature
-        self.mask = self.mask_correlated_samples(batch_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
 
@@ -117,16 +114,17 @@ class SimCLRLoss(nn.Module):
         # mask = torch.eye(labels.shape[0], dtype=torch.bool, device=z_i.device)
         # labels = labels[~mask].view(labels.shape[0], -1)
         # loss = torch.nn.functional.cross_entropy(similarity_matrix[~mask].view(-1, similarity_matrix.shape[-1]), labels.view(-1))
-        
-        N = 2 * self.batch_size
+        batch_size = output1.shape[0]
+        N = 2 * batch_size
+        mask = self.mask_correlated_samples(batch_size)
         z = torch.cat((output1,output2), dim=0)
         sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
 
-        sim_i_j = torch.diag(sim, self.batch_size)
-        sim_j_i = torch.diag(sim, -self.batch_size)
+        sim_i_j = torch.diag(sim, batch_size)
+        sim_j_i = torch.diag(sim, -batch_size)
         
         positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(N, 1)
-        negative_samples = sim[self.mask].reshape(N, -1)
+        negative_samples = sim[mask].reshape(N, -1)
         
         labels = torch.from_numpy(np.array([0]*N)).reshape(-1).to(positive_samples.device).long()
         
