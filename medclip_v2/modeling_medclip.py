@@ -119,7 +119,23 @@ class MedCLIPVisionModelViT(nn.Module):
         '''args:
         pixel_values: tensor with shape [bs, 3, img_size, img_size]
         '''
+        # if len(pixel_values) == 2:
+        #     pixel_values1 = pixel_values[0]
+        #     pixel_values2 = pixel_values[1]
+        #     if pixel_values1.shape[1] == 1: pixel_values1 = pixel_values1.repeat((1,3,1,1))
+        #     output1 = self.model(pixel_values1)
+        #     img_embeds1 = output1['pooler_output']
+        #     if project:
+        #         img_embeds1 = self.projection_head(img_embeds1)
+        #     if pixel_values2.shape[1] == 1: pixel_values2 = pixel_values2.repeat((1,3,1,1))
+        #     output2 = self.model(pixel_values2)
+        #     img_embeds2 = output2['pooler_output']
+        #     if project:
+        #         img_embeds2 = self.projection_head(img_embeds2)
+        #     img_embeds = [img_embeds1, img_embeds2]
+        # else:
         if pixel_values.shape[1] == 1: pixel_values = pixel_values.repeat((1,3,1,1))
+        print("shape", pixel_values.shape)
         output = self.model(pixel_values)
         img_embeds = output['pooler_output']
         if project:
@@ -135,7 +151,7 @@ class MedCLIPModel(nn.Module):
         ) -> None:
         super().__init__()
         text_proj_bias = False
-        assert vision_cls in [MedCLIPVisionModel, MedCLIPVisionModelViT], 'vision_cls should be one of [MedCLIPVisionModel, MedCLIPVisionModelViT]'
+        assert vision_cls in [MedCLIPVisionModel, MedCLIPVisionModelViT, MedCLIPVisionModelViTOnly], 'vision_cls should be one of [MedCLIPVisionModel, MedCLIPVisionModelViT]'
 
         self.vision_model = vision_cls(checkpoint=vision_checkpoint)
         self.text_model = MedCLIPTextModel(proj_bias=False)
@@ -206,6 +222,7 @@ class MedCLIPModel(nn.Module):
         return_loss=None,
         **kwargs,
         ):
+        
         input_ids = input_ids.cuda()
         if attention_mask is not None:
             attention_mask = attention_mask.cuda()
@@ -238,6 +255,69 @@ class MedCLIPModel(nn.Module):
 
     def contrastive_loss(self, logits: torch.Tensor) -> torch.Tensor:
         return nn.functional.cross_entropy(logits, torch.arange(len(logits), device=logits.device))
+
+
+class MedCLIPVisionModelViTOnly(nn.Module):
+    '''take an VIT model as the backbone.
+    '''
+    def __init__(self, checkpoint=None, medclip_checkpoint=None) -> None:
+        '''args:
+        checkpoint: load from the vision encoder checkpoint
+        medclip_checkpoint: load from the vision-text dual encoders checkpoint
+        '''
+        super().__init__()
+        self.vit_type = constants.VIT_TYPE
+        self.model = AutoModel.from_pretrained(self.vit_type)
+        self.projection_head = nn.Linear(768, 512, bias=False)
+        if checkpoint is not None:
+            state_dict = torch.load(os.path.join(checkpoint, constants.WEIGHTS_NAME))
+            missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+            print('missing keys:', missing_keys)
+            print('unexpected keys:', unexpected_keys)
+            print('load model weight from:', checkpoint)
+        if medclip_checkpoint is not None:
+            self.load_from_medclip(medclip_checkpoint)
+
+    def load_from_medclip(self, checkpoint):
+        '''handle key mismatch of medclip and the vision encoder.
+        '''
+        state_dict = torch.load(os.path.join(checkpoint, constants.WEIGHTS_NAME))
+        new_state_dict = {}
+        for key in state_dict.keys():
+            if 'vision_model' in key:
+                new_state_dict[key.replace('vision_model.','')] = state_dict[key]
+        missing_keys, unexpected_keys = self.load_state_dict(new_state_dict, strict=False)
+        print('missing keys:', missing_keys)
+        print('unexpected keys:', unexpected_keys)
+        print('load model weight from:', checkpoint)
+
+    def forward(self, pixel_values, project=True):
+        '''args:
+        pixel_values: tensor with shape [bs, 3, img_size, img_size]
+        '''
+        # if len(pixel_values) == 2:
+        #     pixel_values1 = pixel_values[0]
+        #     pixel_values2 = pixel_values[1]
+        #     if pixel_values1.shape[1] == 1: pixel_values1 = pixel_values1.repeat((1,3,1,1))
+        #     output1 = self.model(pixel_values1)
+        #     img_embeds1 = output1['pooler_output']
+        #     if project:
+        #         img_embeds1 = self.projection_head(img_embeds1)
+        #     if pixel_values2.shape[1] == 1: pixel_values2 = pixel_values2.repeat((1,3,1,1))
+        #     output2 = self.model(pixel_values2)
+        #     img_embeds2 = output2['pooler_output']
+        #     if project:
+        #         img_embeds2 = self.projection_head(img_embeds2)
+        #     img_embeds = [img_embeds1, img_embeds2]
+        # else:
+        if pixel_values.shape[1] == 1: pixel_values = pixel_values.repeat((1,3,1,1))
+        print("shape", pixel_values.shape)
+        output = self.model(pixel_values)
+        img_embeds = output['pooler_output']
+        if project:
+            img_embeds = self.projection_head(img_embeds)
+        img_embeds = img_embeds / img_embeds.norm(dim=-1, keepdim=True)
+        return img_embeds
 
 class PromptClassifier(nn.Module):
     '''take MedCLIP model with prompts for zero-shot classification
@@ -297,8 +377,8 @@ class SuperviseClassifier(nn.Module):
         super().__init__()
         self.model = vision_model
         self.num_class = num_class
-        assert mode.lower() in ['multiclass','multilabel','binary']
-        self.mode = mode.lower()
+        assert mode in ['multiclass','multilabel','binary']
+        self.mode = mode
         if num_class > 2:
             if mode == 'multiclass':
                 self.loss_fn = nn.CrossEntropyLoss()
